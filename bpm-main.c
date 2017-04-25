@@ -6,6 +6,7 @@
 #include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/compiler.h>
 #include <linux/io.h>
 #include <linux/pci.h>
 #include <linux/msi.h>
