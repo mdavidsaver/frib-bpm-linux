@@ -147,6 +147,10 @@ void bpm_remove(struct pci_dev *dev)
 }
 
 static const struct pci_device_id bpm_ids[] = {
+    {
+        .vendor = PCI_VENDOR_ID_XILINX,
+        .device = 0xfbad, /* FRIB FGPDB as BPM */
+    },
     { 0, }
 };
 
@@ -171,6 +175,8 @@ void __exit bpm_exit(void)
 
 module_init(bpm_init);
 module_exit(bpm_exit);
+
+MODULE_DEVICE_TABLE(pci, bpm_ids);
 
 MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
