@@ -6,7 +6,6 @@
 #include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/compiler.h>
 #include <linux/io.h>
 #include <linux/pci.h>
 #include <linux/msi.h>
@@ -35,7 +34,7 @@ irqreturn_t bpm_handler(int irq, struct uio_info *dev_info)
     u32 *addr = (u32*)(CAPTURE_BASE+(char*)priv->uio.mem[0].internal_addr);
 
     for(i=0; i<CAPTURE_SIZE; i++, addr++) {
-        WRITE_ONCE(priv->block[i], ioread32(addr));
+        ACCESS_ONCE(priv->block[i]) = ioread32(addr);
     }
 
     wmb();
