@@ -6,6 +6,7 @@
 #include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/io.h>
 #include <linux/pci.h>
 #include <linux/msi.h>
 #include <linux/interrupt.h>
@@ -18,13 +19,28 @@
 struct bpm_priv {
     struct uio_info uio;
     struct pci_dev *pci;
+    unsigned block_size; /* size in bytes */
+    u32 *block;
 };
+
+#define CAPTURE_BASE 0
+#define CAPTURE_SIZE 16
 
 static
 irqreturn_t bpm_handler(int irq, struct uio_info *dev_info)
 {
     struct bpm_priv *priv = container_of(dev_info, struct bpm_priv, uio);
-    (void)priv;
+    unsigned i;
+    u32 *addr = (u32*)(CAPTURE_BASE+(char*)priv->uio.mem[0].internal_addr);
+
+    for(i=0; i<CAPTURE_SIZE; i++, addr++) {
+        WRITE_ONCE(priv->block[i], ioread32(addr));
+    }
+
+    wmb();
+
+    //TODO: need to invalidate cpu cache or otherwise additional sync. with userspace?
+
     return IRQ_HANDLED;
 }
 
@@ -60,6 +76,25 @@ int bpm_probe(struct pci_dev *dev, const struct pci_device_id *id)
     if(!priv->uio.mem[0].internal_addr)  ret=-ENODEV;
     CHECK(ioremap, "Failed to map BAR0");
 
+    //TODO: inspect to find block size
+    priv->block_size = CAPTURE_BASE;
+
+    if(priv->block_size==0) ret=-ENOMEM;
+    CHECK(block_size, "Zero block size");
+
+    // round up to PAGE_SIZE
+    // simplify mmap() by having only whole page(s)
+    priv->block_size = ((priv->block_size-1u)|PAGE_MASK)+1u;
+
+    priv->block = kzalloc(priv->block_size, GFP_KERNEL);
+    if(!priv->block) ret=-ENOMEM;
+    CHECK(block_alloc, "Failed to allocate for capture block");
+
+    priv->uio.mem[1].name = "CAP";
+    priv->uio.mem[1].addr = (phys_addr_t)priv->block;
+    priv->uio.mem[1].size = priv->block_size;
+    priv->uio.mem[1].memtype = UIO_MEM_LOGICAL;
+
     ret = pci_enable_msi(dev);
     CHECK(enable_msi, "Can't enable MSI");
 
@@ -77,8 +112,11 @@ int bpm_probe(struct pci_dev *dev, const struct pci_device_id *id)
     //pci_set_drvdata(dev, NULL);
 err_unregister:
     pci_disable_msi(dev);
+err_block_alloc:
+    kfree(priv->block);
 err_enable_msi:
     iounmap(priv->uio.mem[0].internal_addr);
+err_block_size:
 err_ioremap:
     pci_release_regions(dev);
 err_request_regions:
@@ -88,6 +126,8 @@ err_enable_device:
     return ret;
 }
 
+#undef CHECK
+
 static
 void bpm_remove(struct pci_dev *dev)
 {
@@ -96,7 +136,9 @@ void bpm_remove(struct pci_dev *dev)
 
     uio_unregister_device(&priv->uio);
     pci_set_drvdata(dev, NULL);
+
     pci_disable_msi(dev);
+    kfree(priv->block);
     iounmap(priv->uio.mem[0].internal_addr);
     pci_release_regions(dev);
     pci_disable_device(dev);
