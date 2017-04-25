@@ -3,6 +3,10 @@ dist: trusty
 language: c
 compiler:
   - gcc
+addons:
+  apt:
+    packages:
+    - bc
 env:
   - KSER=3.x KVER=3.2.1
   - KSER=3.x KVER=3.16.1
