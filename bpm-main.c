@@ -23,8 +23,8 @@ struct bpm_priv {
     u32 *block;
 };
 
-#define CAPTURE_BASE 0
-#define CAPTURE_SIZE 16
+#define CAPTURE_BASE (0x40*4)
+#define CAPTURE_SIZE (64*4)
 
 static
 irqreturn_t bpm_handler(int irq, struct uio_info *dev_info)
@@ -33,13 +33,14 @@ irqreturn_t bpm_handler(int irq, struct uio_info *dev_info)
     unsigned i;
     u32 *addr = (u32*)(CAPTURE_BASE+(char*)priv->uio.mem[0].internal_addr);
 
-    for(i=0; i<CAPTURE_SIZE; i++, addr++) {
+    //TODO: Unsure about needed sync. with userspace?
+    //      Need to invalidate cpu dcache since userspace goes through a different TLB entry than kernel?
+
+    for(i=0; i<CAPTURE_SIZE/4u; i++, addr++) {
         ACCESS_ONCE(priv->block[i]) = ioread32(addr);
     }
 
     wmb();
-
-    //TODO: need to invalidate cpu cache or otherwise additional sync. with userspace?
 
     return IRQ_HANDLED;
 }
