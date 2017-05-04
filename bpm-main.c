@@ -85,7 +85,7 @@ int bpm_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
     // round up to PAGE_SIZE
     // simplify mmap() by having only whole page(s)
-    priv->block_size = ((priv->block_size-1u)|PAGE_MASK)+1u;
+    priv->block_size = ((priv->block_size-1u)|(~PAGE_MASK))+1u;
 
     priv->block = kzalloc(priv->block_size, GFP_KERNEL);
     if(!priv->block) ret=-ENOMEM;
