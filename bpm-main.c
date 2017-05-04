@@ -148,10 +148,7 @@ void bpm_remove(struct pci_dev *dev)
 }
 
 static const struct pci_device_id bpm_ids[] = {
-    {
-        .vendor = PCI_VENDOR_ID_XILINX,
-        .device = 0xfbad, /* FRIB FGPDB as BPM */
-    },
+    {PCI_DEVICE(PCI_VENDOR_ID_XILINX, 0xfbad)}, /* FRIB FGPDB as BPM */
     { 0, }
 };
 
